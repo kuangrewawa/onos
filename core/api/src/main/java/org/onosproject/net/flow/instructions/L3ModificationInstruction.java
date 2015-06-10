@@ -68,13 +68,22 @@ public abstract class L3ModificationInstruction implements Instruction {
         /**
          * Copy TTL in.
          */
-        TTL_IN
+        TTL_IN,
 
-        //TODO: remaining types
+        /**
+         * Set metadata.
+         */
+        METADATA,
+
+        /**
+         * Set metadata.
+         */
+        TUNNEL_ID
     }
 
     /**
      * Returns the subtype of the modification instruction.
+     *
      * @return type of instruction
      */
     public abstract L3SubType subtype();
@@ -87,7 +96,8 @@ public abstract class L3ModificationInstruction implements Instruction {
     /**
      * Represents a L3 src/dst modification instruction.
      */
-    public static final class ModIPInstruction extends L3ModificationInstruction {
+    public static final class ModIPInstruction
+            extends L3ModificationInstruction {
 
         private final L3SubType subtype;
         private final IpAddress ip;
@@ -109,8 +119,8 @@ public abstract class L3ModificationInstruction implements Instruction {
 
         @Override
         public String toString() {
-            return toStringHelper(subtype().toString())
-                    .add("ip", ip).toString();
+            return toStringHelper(subtype().toString()).add("ip", ip)
+                    .toString();
         }
 
         @Override
@@ -125,26 +135,27 @@ public abstract class L3ModificationInstruction implements Instruction {
             }
             if (obj instanceof ModIPInstruction) {
                 ModIPInstruction that = (ModIPInstruction) obj;
-                return  Objects.equals(ip, that.ip) &&
-                        Objects.equals(this.subtype(), that.subtype());
+                return Objects.equals(ip, that.ip)
+                        && Objects.equals(this.subtype(), that.subtype());
             }
             return false;
         }
     }
 
     /**
-     * Represents a L3 IPv6 Flow Label (RFC 6437) modification instruction
-     * (20 bits unsigned integer).
+     * Represents a L3 IPv6 Flow Label (RFC 6437) modification instruction (20
+     * bits unsigned integer).
      */
     public static final class ModIPv6FlowLabelInstruction
-        extends L3ModificationInstruction {
+            extends L3ModificationInstruction {
         private static final int MASK = 0xfffff;
-        private final int flowLabel;            // IPv6 flow label: 20 bits
+        private final int flowLabel; // IPv6 flow label: 20 bits
 
         /**
          * Creates a new flow mod instruction.
          *
-         * @param flowLabel the IPv6 flow label to set in the treatment (20 bits)
+         * @param flowLabel the IPv6 flow label to set in the treatment (20
+         *            bits)
          */
         ModIPv6FlowLabelInstruction(int flowLabel) {
             this.flowLabel = flowLabel & MASK;
@@ -167,7 +178,7 @@ public abstract class L3ModificationInstruction implements Instruction {
         @Override
         public String toString() {
             return toStringHelper(subtype().toString())
-                .add("flowLabel", Long.toHexString(flowLabel)).toString();
+                    .add("flowLabel", Long.toHexString(flowLabel)).toString();
         }
 
         @Override
@@ -181,9 +192,8 @@ public abstract class L3ModificationInstruction implements Instruction {
                 return true;
             }
             if (obj instanceof ModIPv6FlowLabelInstruction) {
-                ModIPv6FlowLabelInstruction that =
-                    (ModIPv6FlowLabelInstruction) obj;
-                return  Objects.equals(flowLabel, that.flowLabel);
+                ModIPv6FlowLabelInstruction that = (ModIPv6FlowLabelInstruction) obj;
+                return Objects.equals(flowLabel, that.flowLabel);
             }
             return false;
         }
@@ -192,7 +202,8 @@ public abstract class L3ModificationInstruction implements Instruction {
     /**
      * Represents a L3 TTL modification instruction.
      */
-    public static final class ModTtlInstruction extends L3ModificationInstruction {
+    public static final class ModTtlInstruction
+            extends L3ModificationInstruction {
 
         private final L3SubType subtype;
 
@@ -207,8 +218,7 @@ public abstract class L3ModificationInstruction implements Instruction {
 
         @Override
         public String toString() {
-            return toStringHelper(subtype().toString())
-                    .toString();
+            return toStringHelper(subtype().toString()).toString();
         }
 
         @Override
@@ -223,7 +233,53 @@ public abstract class L3ModificationInstruction implements Instruction {
             }
             if (obj instanceof ModTtlInstruction) {
                 ModTtlInstruction that = (ModTtlInstruction) obj;
-                return  Objects.equals(this.subtype(), that.subtype());
+                return Objects.equals(this.subtype(), that.subtype());
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Represents a Metadata modification instruction.
+     */
+    public static final class ModMetaDataInstruction
+            extends L3ModificationInstruction {
+
+        private final long metadata;
+        private final L3SubType subtype;
+
+        ModMetaDataInstruction(long metadata, L3SubType subtype) {
+            this.metadata = metadata;
+            this.subtype = subtype;
+        }
+
+        public long getMetadata() {
+            return metadata;
+        }
+
+        @Override
+        public L3SubType subtype() {
+            return subtype;
+        }
+
+        @Override
+        public String toString() {
+            return toStringHelper(subtype().toString()).toString();
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(type(), subtype());
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj instanceof ModMetaDataInstruction) {
+                ModMetaDataInstruction that = (ModMetaDataInstruction) obj;
+                return Objects.equals(this.metadata, that.metadata);
             }
             return false;
         }

@@ -35,7 +35,6 @@ import org.onosproject.net.flow.FlowRuleBatchEntry;
 import org.onosproject.net.flow.FlowRuleBatchEvent;
 import org.onosproject.net.flow.FlowRuleBatchRequest;
 import org.onosproject.net.flowext.DefaultFlowRuleExt;
-import org.onosproject.net.flowext.DownStreamFlowEntry;
 import org.onosproject.net.flowext.FlowExtCompletedOperation;
 import org.onosproject.net.flowext.FlowRuleExtRouter;
 import org.onosproject.net.flowext.FlowRuleExtRouterListener;
@@ -115,7 +114,6 @@ public class DefaultFlowRuleExtRouter
                     .nextId(DistributedStoreSerializers.STORE_CUSTOM_BEGIN)
                     .register(FlowExtCompletedOperation.class)
                     .register(FlowRuleBatchRequest.class)
-                    .register(DownStreamFlowEntry.class)
                     .register(DefaultFlowRuleExt.class)
                     .build();
         }

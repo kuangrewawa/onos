@@ -65,9 +65,18 @@ public final class Criteria {
      * @return match criterion
      */
     public static Criterion matchMetadata(long metadata) {
-        return new MetadataCriterion(metadata);
+        return new MetadataCriterion(metadata, Type.METADATA);
     }
 
+    /**
+     * Creates a match on tunnelId field using the specified value.
+     *
+     * @param metadata tunnelId value (64 bits data)
+     * @return match criterion
+     */
+    public static Criterion matchTunnelId(long tunnelId) {
+        return new MetadataCriterion(tunnelId, Type.TUNNEL_ID);
+    }
     /**
      * Creates a match on ETH_DST field using the specified value. This value
      * may be a wildcard mask.
@@ -438,19 +447,20 @@ public final class Criteria {
      */
     public static final class MetadataCriterion implements Criterion {
         private final long metadata;
-
+        private final Type type;
         /**
          * Constructor.
          *
          * @param metadata the metadata to match (64 bits data)
          */
-        public MetadataCriterion(long metadata) {
+        public MetadataCriterion(long metadata, Type type) {
             this.metadata = metadata;
+            this.type = type;
         }
 
         @Override
         public Type type() {
-            return Type.METADATA;
+            return type;
         }
 
         /**

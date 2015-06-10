@@ -40,8 +40,9 @@ public interface TrafficTreatment {
     List<Instruction> instructions();
 
     /**
-     * Returns the list of treatment instructions that will be applied
-     * further down the pipeline.
+     * Returns the list of treatment instructions that will be applied further
+     * down the pipeline.
+     *
      * @return list of treatment instructions
      */
     List<Instruction> deferred();
@@ -49,6 +50,7 @@ public interface TrafficTreatment {
     /**
      * Returns the list of treatment instructions that will be applied
      * immediately.
+     *
      * @return list of treatment instructions
      */
     List<Instruction> immediate();
@@ -63,13 +65,15 @@ public interface TrafficTreatment {
 
     /**
      * Returns the next table in the pipeline.
+     *
      * @return a table transition; may be null.
      */
     Instructions.TableTypeTransition tableTransition();
 
     /**
-     * Whether the deferred treatment instructions will be cleared
-     * by the device.
+     * Whether the deferred treatment instructions will be cleared by the
+     * device.
+     *
      * @return a boolean
      */
     Boolean clearedDeferred();
@@ -143,6 +147,7 @@ public interface TrafficTreatment {
 
         /**
          * Strips the vlan tag if there is one.
+         *
          * @return a treatment builder
          */
         public Builder stripVlan();
@@ -230,13 +235,28 @@ public interface TrafficTreatment {
         public Builder setLambda(short lambda);
 
         /**
+         * Sets the metadata.
+         *
+         * @param metadata metadata
+         * @return a treatment builder
+         */
+        public Builder setMetadata(long metadata);
+
+        /**
+         * Sets the tunnelId.
+         *
+         * @param tunnelId tunnelId
+         * @return a treatment builder
+         */
+        public Builder setTunnelId(long tunnelId);
+
+        /**
          * Sets the group ID.
          *
          * @param groupId group ID
          * @return a treatment builder
          */
         public Builder group(GroupId groupId);
-
 
         /**
          * Sets the next table type to transition to.
@@ -245,6 +265,14 @@ public interface TrafficTreatment {
          * @return a treatement builder
          */
         public Builder transition(FlowRule.Type type);
+
+        /**
+         * For neuton multiple table pipeline.
+         *
+         * @param table the next table goes to
+         * @return a treatement builder
+         */
+        public Builder transition(Integer table);
 
         /**
          * Pops outermost VLAN tag.
@@ -262,19 +290,21 @@ public interface TrafficTreatment {
 
         /**
          * Any instructions preceded by this method call will be deferred.
+         *
          * @return a treatment builder
          */
         public Builder deferred();
 
         /**
          * Any instructions preceded by this method call will be immediate.
+         *
          * @return a treatment builder
          */
         public Builder immediate();
 
-
         /**
          * Instructs the device to clear the deferred instructions set.
+         *
          * @return a treatment builder
          */
         public Builder wipeDeferred();
@@ -282,9 +312,11 @@ public interface TrafficTreatment {
         /**
          * Builds an immutable traffic treatment descriptor.
          * <p>
-         * If the treatment is empty when build() is called, it will add a default
-         * drop rule automatically. For a treatment that is actually empty, use
-         * {@link org.onosproject.net.flow.DefaultTrafficTreatment#emptyTreatment}.
+         * If the treatment is empty when build() is called, it will add a
+         * default drop rule automatically. For a treatment that is actually
+         * empty, use
+         * {@link org.onosproject.net.flow.DefaultTrafficTreatment#emptyTreatment}
+         * .
          * </p>
          *
          * @return traffic treatment

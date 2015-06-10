@@ -15,9 +15,16 @@
  */
 package org.onosproject.net.proxyarp.impl;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Multimap;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.slf4j.LoggerFactory.getLogger;
+
+import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
+
 import org.apache.felix.scr.annotations.Activate;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Deactivate;
@@ -38,9 +45,12 @@ import org.onlab.packet.ndp.NeighborDiscoveryOptions;
 import org.onlab.packet.ndp.NeighborSolicitation;
 import org.onosproject.net.ConnectPoint;
 import org.onosproject.net.Device;
+import org.onosproject.net.FixedIps;
 import org.onosproject.net.Host;
 import org.onosproject.net.HostId;
 import org.onosproject.net.Link;
+import org.onosproject.net.Network;
+import org.onosproject.net.OvsPort;
 import org.onosproject.net.Port;
 import org.onosproject.net.PortNumber;
 import org.onosproject.net.device.DeviceEvent;
@@ -54,22 +64,19 @@ import org.onosproject.net.host.PortAddresses;
 import org.onosproject.net.link.LinkEvent;
 import org.onosproject.net.link.LinkListener;
 import org.onosproject.net.link.LinkService;
+import org.onosproject.net.networks.NetworkStore;
+import org.onosproject.net.ovsports.OvsPortStore;
 import org.onosproject.net.packet.DefaultOutboundPacket;
+import org.onosproject.net.packet.DefaultPacketContext;
 import org.onosproject.net.packet.InboundPacket;
 import org.onosproject.net.packet.PacketContext;
 import org.onosproject.net.packet.PacketService;
 import org.onosproject.net.proxyarp.ProxyArpService;
 import org.slf4j.Logger;
 
-import java.nio.ByteBuffer;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Set;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.slf4j.LoggerFactory.getLogger;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
 
 @Component(immediate = true)
 @Service
@@ -95,15 +102,21 @@ public class ProxyArpManager implements ProxyArpService {
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected DeviceService deviceService;
 
-    private final Multimap<Device, PortNumber> internalPorts =
-            HashMultimap.<Device, PortNumber>create();
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected NetworkStore networkStore;
 
-    private final Multimap<Device, PortNumber> externalPorts =
-            HashMultimap.<Device, PortNumber>create();
+    @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
+    protected OvsPortStore ovsPortStore;
+
+    private final Multimap<Device, PortNumber> internalPorts = HashMultimap
+            .<Device, PortNumber>create();
+
+    private final Multimap<Device, PortNumber> externalPorts = HashMultimap
+            .<Device, PortNumber>create();
 
     /**
-     * Listens to both device service and link service to determine
-     * whether a port is internal or external.
+     * Listens to both device service and link service to determine whether a
+     * port is internal or external.
      */
     @Activate
     public void activate() {
@@ -113,7 +126,6 @@ public class ProxyArpManager implements ProxyArpService {
 
         log.info("Started");
     }
-
 
     @Deactivate
     public void deactivate() {
@@ -138,25 +150,42 @@ public class ProxyArpManager implements ProxyArpService {
         }
     }
 
+    @Override
+    public void reply(Ethernet eth, ConnectPoint inPort, long tunnelID) {
+        checkNotNull(eth, REQUEST_NULL);
+
+        if (eth.getEtherType() == Ethernet.TYPE_ARP) {
+            if (tunnelID != 0) {
+                replyArp(eth, inPort, tunnelID);
+            } else {
+                replyArp(eth, inPort);
+            }
+        } else if (eth.getEtherType() == Ethernet.TYPE_IPV6) {
+            replyNdp(eth, inPort);
+        }
+    }
+
     private void replyArp(Ethernet eth, ConnectPoint inPort) {
         ARP arp = (ARP) eth.getPayload();
         checkArgument(arp.getOpCode() == ARP.OP_REQUEST, NOT_ARP_REQUEST);
         checkNotNull(inPort);
-        Ip4Address targetAddress = Ip4Address.valueOf(arp.getTargetProtocolAddress());
+        Ip4Address targetAddress = Ip4Address.valueOf(arp
+                .getTargetProtocolAddress());
 
         VlanId vlan = VlanId.vlanId(eth.getVlanID());
 
         if (isOutsidePort(inPort)) {
-            // If the request came from outside the network, only reply if it was
+            // If the request came from outside the network, only reply if it
+            // was
             // for one of our external addresses.
-            Set<PortAddresses> addressSet =
-                    hostService.getAddressBindingsForPort(inPort);
+            Set<PortAddresses> addressSet = hostService
+                    .getAddressBindingsForPort(inPort);
 
             for (PortAddresses addresses : addressSet) {
                 for (InterfaceIpAddress ia : addresses.ipAddresses()) {
                     if (ia.ipAddress().equals(targetAddress)) {
-                        Ethernet arpReply =
-                                buildArpReply(targetAddress, addresses.mac(), eth);
+                        Ethernet arpReply = buildArpReply(targetAddress,
+                                                          addresses.mac(), eth);
                         sendTo(arpReply, inPort);
                     }
                 }
@@ -169,8 +198,8 @@ public class ProxyArpManager implements ProxyArpService {
         Set<Host> hosts = hostService.getHostsByIp(targetAddress);
 
         Host dst = null;
-        Host src = hostService.getHost(HostId.hostId(eth.getSourceMAC(),
-                VlanId.vlanId(eth.getVlanID())));
+        Host src = hostService.getHost(HostId.hostId(eth.getSourceMAC(), VlanId
+                .vlanId(eth.getVlanID())));
 
         for (Host host : hosts) {
             if (host.vlan().equals(vlan)) {
@@ -189,14 +218,12 @@ public class ProxyArpManager implements ProxyArpService {
         // If the source address matches one of our external addresses
         // it could be a request from an internal host to an external
         // address. Forward it over to the correct port.
-        Ip4Address source =
-                Ip4Address.valueOf(arp.getSenderProtocolAddress());
+        Ip4Address source = Ip4Address.valueOf(arp.getSenderProtocolAddress());
         Set<PortAddresses> sourceAddresses = findPortsInSubnet(source);
         boolean matched = false;
         for (PortAddresses pa : sourceAddresses) {
             for (InterfaceIpAddress ia : pa.ipAddresses()) {
-                if (ia.ipAddress().equals(source) &&
-                        pa.vlan().equals(vlan)) {
+                if (ia.ipAddress().equals(source) && pa.vlan().equals(vlan)) {
                     matched = true;
                     sendTo(eth, pa.connectPoint());
                     break;
@@ -216,6 +243,54 @@ public class ProxyArpManager implements ProxyArpService {
         return;
     }
 
+    private void replyArp(Ethernet eth, ConnectPoint inPort, Long tunnelID) {
+        log.info("find mac for target Address by { }.", tunnelID);
+        ARP arp = (ARP) eth.getPayload();
+        checkArgument(arp.getOpCode() == ARP.OP_REQUEST, NOT_ARP_REQUEST);
+        checkNotNull(inPort);
+        Ip4Address targetAddress = Ip4Address.valueOf(arp
+                .getTargetProtocolAddress());
+
+        VlanId vlan = VlanId.vlanId(eth.getVlanID());
+        Network network = null;
+        Iterable<Network> networks = networkStore.getNetworks();
+        Iterable<OvsPort> ports = ovsPortStore.getPorts();
+        /*
+         * // find source tunnelID by sourceMac MacAddress sourceMAC =
+         * eth.getSourceMAC(); NetworkId srcNetworkid = null; for (OvsPort op :
+         * ports) { if
+         * (op.macAddress().toUpperCase().equals(sourceMAC.toString())) {
+         * srcNetworkid = op.networkid(); } } if (srcNetworkid != null) {
+         * Network srcNetwork = networkStore.getNetwork(srcNetworkid); String
+         * srcTunnelID = srcNetwork.providerSegmentationID(); if
+         * (Long.parseLong(srcTunnelID) != tunnelID) { return; } }
+         */
+        for (Network ne : networks) {
+            if (Long.parseLong(ne.providerSegmentationID()) == tunnelID) {
+                network = ne;
+            }
+        }
+        for (OvsPort op : ports) {
+            if (network.id().equals(op.networkid())) {
+                Iterable<FixedIps> fixedIPs = op.fixedIPs();
+                for (FixedIps fp : fixedIPs) {
+
+                    if (fp.ipAddress().equals(targetAddress.getIp4Address()
+                                                      .toString())) {
+                        Ethernet arpReply = buildArpReply(targetAddress,
+                                                          MacAddress.valueOf(op
+                                                                  .macAddress()),
+                                                          eth);
+                        sendTo(arpReply, inPort);
+                        return;
+                    }
+                }
+
+            }
+        }
+
+    }
+
     private void replyNdp(Ethernet eth, ConnectPoint inPort) {
 
         IPv6 ipv6 = (IPv6) eth.getPayload();
@@ -228,14 +303,14 @@ public class ProxyArpManager implements ProxyArpService {
         // If the request came from outside the network, only reply if it was
         // for one of our external addresses.
         if (isOutsidePort(inPort)) {
-            Set<PortAddresses> addressSet =
-                    hostService.getAddressBindingsForPort(inPort);
+            Set<PortAddresses> addressSet = hostService
+                    .getAddressBindingsForPort(inPort);
 
             for (PortAddresses addresses : addressSet) {
                 for (InterfaceIpAddress ia : addresses.ipAddresses()) {
                     if (ia.ipAddress().equals(targetAddress)) {
-                        Ethernet ndpReply =
-                            buildNdpReply(targetAddress, addresses.mac(), eth);
+                        Ethernet ndpReply = buildNdpReply(targetAddress,
+                                                          addresses.mac(), eth);
                         sendTo(ndpReply, inPort);
                     }
                 }
@@ -245,14 +320,12 @@ public class ProxyArpManager implements ProxyArpService {
             // If the source address matches one of our external addresses
             // it could be a request from an internal host to an external
             // address. Forward it over to the correct ports.
-            Ip6Address source =
-                    Ip6Address.valueOf(ipv6.getSourceAddress());
+            Ip6Address source = Ip6Address.valueOf(ipv6.getSourceAddress());
             Set<PortAddresses> sourceAddresses = findPortsInSubnet(source);
             boolean matched = false;
             for (PortAddresses pa : sourceAddresses) {
                 for (InterfaceIpAddress ia : pa.ipAddresses()) {
-                    if (ia.ipAddress().equals(source) &&
-                            pa.vlan().equals(vlan)) {
+                    if (ia.ipAddress().equals(source) && pa.vlan().equals(vlan)) {
                         matched = true;
                         sendTo(eth, pa.connectPoint());
                         break;
@@ -270,8 +343,8 @@ public class ProxyArpManager implements ProxyArpService {
         Set<Host> hosts = hostService.getHostsByIp(targetAddress);
 
         Host dst = null;
-        Host src = hostService.getHost(HostId.hostId(eth.getSourceMAC(),
-                VlanId.vlanId(eth.getVlanID())));
+        Host src = hostService.getHost(HostId.hostId(eth.getSourceMAC(), VlanId
+                .vlanId(eth.getVlanID())));
 
         for (Host host : hosts) {
             if (host.vlan().equals(vlan)) {
@@ -296,7 +369,6 @@ public class ProxyArpManager implements ProxyArpService {
         sendTo(ndpReply, inPort);
     }
 
-
     /**
      * Outputs the given packet out the given port.
      *
@@ -304,8 +376,8 @@ public class ProxyArpManager implements ProxyArpService {
      * @param outPort the port to send it out
      */
     private void sendTo(Ethernet packet, ConnectPoint outPort) {
-        if (internalPorts.containsEntry(
-                deviceService.getDevice(outPort.deviceId()), outPort.port())) {
+        if (internalPorts.containsEntry(deviceService.getDevice(outPort
+                .deviceId()), outPort.port())) {
             // Sanity check to make sure we don't send the packet out an
             // internal port and create a loop (could happen due to
             // misconfiguration).
@@ -315,7 +387,9 @@ public class ProxyArpManager implements ProxyArpService {
         TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
         builder.setOutput(outPort.port());
         packetService.emit(new DefaultOutboundPacket(outPort.deviceId(),
-                builder.build(), ByteBuffer.wrap(packet.serialize())));
+                                                     builder.build(),
+                                                     ByteBuffer.wrap(packet
+                                                             .serialize())));
     }
 
     /**
@@ -356,15 +430,18 @@ public class ProxyArpManager implements ProxyArpService {
         checkNotNull(eth, REQUEST_NULL);
 
         Host h = hostService.getHost(HostId.hostId(eth.getDestinationMAC(),
-                VlanId.vlanId(eth.getVlanID())));
+                                                   VlanId.vlanId(eth
+                                                           .getVlanID())));
 
         if (h == null) {
             flood(eth, inPort);
         } else {
-            TrafficTreatment.Builder builder = DefaultTrafficTreatment.builder();
+            TrafficTreatment.Builder builder = DefaultTrafficTreatment
+                    .builder();
             builder.setOutput(h.location().port());
-            packetService.emit(new DefaultOutboundPacket(h.location().deviceId(),
-                    builder.build(), ByteBuffer.wrap(eth.serialize())));
+            packetService.emit(new DefaultOutboundPacket(h.location()
+                    .deviceId(), builder.build(), ByteBuffer.wrap(eth
+                    .serialize())));
         }
 
     }
@@ -387,11 +464,12 @@ public class ProxyArpManager implements ProxyArpService {
 
     private boolean handleArp(PacketContext context, Ethernet ethPkt) {
         ARP arp = (ARP) ethPkt.getPayload();
-
         if (arp.getOpCode() == ARP.OP_REPLY) {
             forward(ethPkt, context.inPacket().receivedFrom());
         } else if (arp.getOpCode() == ARP.OP_REQUEST) {
-            reply(ethPkt, context.inPacket().receivedFrom());
+            DefaultPacketContext ctx = (DefaultPacketContext) context;
+            reply(ethPkt, context.inPacket().receivedFrom(), ctx.inPacket()
+                    .tunnelID());
         } else {
             return false;
         }
@@ -429,15 +507,16 @@ public class ProxyArpManager implements ProxyArpService {
 
         synchronized (externalPorts) {
             for (Entry<Device, PortNumber> entry : externalPorts.entries()) {
-                ConnectPoint cp = new ConnectPoint(entry.getKey().id(), entry.getValue());
+                ConnectPoint cp = new ConnectPoint(entry.getKey().id(),
+                                                   entry.getValue());
                 if (isOutsidePort(cp) || cp.equals(inPort)) {
                     continue;
                 }
 
                 builder = DefaultTrafficTreatment.builder();
                 builder.setOutput(entry.getValue());
-                packetService.emit(new DefaultOutboundPacket(entry.getKey().id(),
-                        builder.build(), buf));
+                packetService.emit(new DefaultOutboundPacket(entry.getKey()
+                        .id(), builder.build(), buf));
             }
         }
     }
@@ -490,7 +569,7 @@ public class ProxyArpManager implements ProxyArpService {
      * @return an Ethernet frame containing the ARP reply
      */
     private Ethernet buildArpReply(Ip4Address srcIp, MacAddress srcMac,
-            Ethernet request) {
+                                   Ethernet request) {
 
         Ethernet eth = new Ethernet();
         eth.setDestinationMACAddress(request.getSourceMAC());
@@ -564,29 +643,29 @@ public class ProxyArpManager implements ProxyArpService {
             Device src = deviceService.getDevice(link.src().deviceId());
             Device dst = deviceService.getDevice(link.dst().deviceId());
             switch (event.type()) {
-                case LINK_ADDED:
-                    synchronized (externalPorts) {
-                        externalPorts.remove(src, link.src().port());
-                        externalPorts.remove(dst, link.dst().port());
-                        internalPorts.put(src, link.src().port());
-                        internalPorts.put(dst, link.dst().port());
-                    }
+            case LINK_ADDED:
+                synchronized (externalPorts) {
+                    externalPorts.remove(src, link.src().port());
+                    externalPorts.remove(dst, link.dst().port());
+                    internalPorts.put(src, link.src().port());
+                    internalPorts.put(dst, link.dst().port());
+                }
 
-                    break;
-                case LINK_REMOVED:
-                    synchronized (externalPorts) {
-                        externalPorts.put(src, link.src().port());
-                        externalPorts.put(dst, link.dst().port());
-                        internalPorts.remove(src, link.src().port());
-                        internalPorts.remove(dst, link.dst().port());
-                    }
+                break;
+            case LINK_REMOVED:
+                synchronized (externalPorts) {
+                    externalPorts.put(src, link.src().port());
+                    externalPorts.put(dst, link.dst().port());
+                    internalPorts.remove(src, link.src().port());
+                    internalPorts.remove(dst, link.dst().port());
+                }
 
-                    break;
-                case LINK_UPDATED:
-                    // don't care about links being updated.
-                    break;
-                default:
-                    break;
+                break;
+            case LINK_UPDATED:
+                // don't care about links being updated.
+                break;
+            default:
+                break;
             }
 
         }
@@ -599,35 +678,35 @@ public class ProxyArpManager implements ProxyArpService {
         public void event(DeviceEvent event) {
             Device device = event.subject();
             switch (event.type()) {
-                case DEVICE_ADDED:
-                case DEVICE_AVAILABILITY_CHANGED:
-                case DEVICE_SUSPENDED:
-                case DEVICE_UPDATED:
-                 // nothing to do in these cases; handled when links get reported
-                    break;
-                case DEVICE_REMOVED:
-                    synchronized (externalPorts) {
-                        externalPorts.removeAll(device);
-                        internalPorts.removeAll(device);
-                    }
-                    break;
-                case PORT_ADDED:
-                case PORT_UPDATED:
-                    synchronized (externalPorts) {
-                        if (event.port().isEnabled()) {
-                            externalPorts.put(device, event.port().number());
-                            internalPorts.remove(device, event.port().number());
-                        }
-                    }
-                    break;
-                case PORT_REMOVED:
-                    synchronized (externalPorts) {
-                        externalPorts.remove(device, event.port().number());
+            case DEVICE_ADDED:
+            case DEVICE_AVAILABILITY_CHANGED:
+            case DEVICE_SUSPENDED:
+            case DEVICE_UPDATED:
+                // nothing to do in these cases; handled when links get reported
+                break;
+            case DEVICE_REMOVED:
+                synchronized (externalPorts) {
+                    externalPorts.removeAll(device);
+                    internalPorts.removeAll(device);
+                }
+                break;
+            case PORT_ADDED:
+            case PORT_UPDATED:
+                synchronized (externalPorts) {
+                    if (event.port().isEnabled()) {
+                        externalPorts.put(device, event.port().number());
                         internalPorts.remove(device, event.port().number());
                     }
-                    break;
-                default:
-                    break;
+                }
+                break;
+            case PORT_REMOVED:
+                synchronized (externalPorts) {
+                    externalPorts.remove(device, event.port().number());
+                    internalPorts.remove(device, event.port().number());
+                }
+                break;
+            default:
+                break;
 
             }
 

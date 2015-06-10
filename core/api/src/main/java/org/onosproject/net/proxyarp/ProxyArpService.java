@@ -62,4 +62,14 @@ public interface ProxyArpService {
      */
     boolean handlePacket(PacketContext context);
 
+    /**
+     * Sends a reply for a given request. If the host is not known then the
+     * arp or neighbor solicitation will be flooded at all edge ports.
+     *
+     * @param eth an arp or neighbor solicitation request
+     * @param inPort the port the request was received on
+     * @param tunnelID the tunnelID
+     */
+    void reply(Ethernet eth, ConnectPoint inPort, long tunnelID);
+
 }

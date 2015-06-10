@@ -39,8 +39,9 @@ public final class DefaultTrafficSelector implements TrafficSelector {
 
     private final Set<Criterion> criteria;
 
-    private static final TrafficSelector EMPTY
-            = new DefaultTrafficSelector(Collections.emptySet());
+    private static final TrafficSelector EMPTY = new DefaultTrafficSelector(
+                                                                            Collections
+                                                                                    .emptySet());
 
     /**
      * Creates a new traffic selector with the specified criteria.
@@ -86,8 +87,7 @@ public final class DefaultTrafficSelector implements TrafficSelector {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(getClass())
-                .add("criteria", criteria)
+        return MoreObjects.toStringHelper(getClass()).add("criteria", criteria)
                 .toString();
     }
 
@@ -309,7 +309,13 @@ public final class DefaultTrafficSelector implements TrafficSelector {
 
         @Override
         public TrafficSelector build() {
-            return new DefaultTrafficSelector(ImmutableSet.copyOf(selector.values()));
+            return new DefaultTrafficSelector(ImmutableSet.copyOf(selector
+                    .values()));
+        }
+
+        @Override
+        public Builder matchTunnelId(long tunnelId) {
+            return add(Criteria.matchTunnelId(tunnelId));
         }
     }
 }

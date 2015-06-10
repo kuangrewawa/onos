@@ -74,8 +74,7 @@ public class  MplsPathIntentInstallerTest extends IntentInstallerTest {
                 new DefaultPath(PID, links, hops),
                 ingressLabel,
                 egressLabel,
-                ImmutableList.of(),
-                55);
+                ImmutableList.of());
     }
 
     /**

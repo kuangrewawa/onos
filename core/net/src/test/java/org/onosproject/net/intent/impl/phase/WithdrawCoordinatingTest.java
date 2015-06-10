@@ -92,13 +92,7 @@ public class WithdrawCoordinatingTest {
         Intent.bindIdGenerator(idGenerator);
 
         // Intent creation should be placed after binding an ID generator
-        input = PointToPointIntent.builder()
-                .appId(appId)
-                .selector(selector)
-                .treatment(treatment)
-                .ingressPoint(cp1)
-                .egressPoint(cp3)
-                .build();
+        input = new PointToPointIntent(appId, selector, treatment, cp1, cp3);
         compiled = new PathIntent(appId, selector, treatment, path);
     }
 

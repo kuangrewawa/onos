@@ -85,6 +85,13 @@ public interface TrafficSelector {
         public Builder matchMetadata(long metadata);
 
         /**
+         * Matches a tunnelId.
+         *
+         * @param tunnelId the tunnelId
+         * @return a selection builder
+         */
+        public Builder matchTunnelId(long tunnelId);
+        /**
          * Matches a l2 dst address.
          *
          * @param addr a l2 address

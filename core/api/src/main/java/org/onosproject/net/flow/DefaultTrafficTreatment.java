@@ -18,6 +18,7 @@ package org.onosproject.net.flow;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+
 import org.apache.commons.collections.ListUtils;
 import org.onlab.packet.IpAddress;
 import org.onlab.packet.MacAddress;
@@ -323,11 +324,21 @@ public final class DefaultTrafficTreatment implements TrafficTreatment {
             return add(Instructions.pushVlan());
         }
 
+
         @Override
-        public Builder transition(FlowRule.Type type) {
-            return add(Instructions.transition(type));
+        public Builder setMetadata(long metadata) {
+            return add(Instructions.modMetaData(metadata));
         }
 
+        @Override
+        public Builder transition(FlowRule.Type type) {
+            return add(Instructions.transition(type.ordinal()));
+        }
+
+        @Override
+        public Builder transition(Integer tableId) {
+            return add(Instructions.transition(tableId));
+        }
         @Override
         public Builder immediate() {
             current = immediate;
@@ -355,6 +366,10 @@ public final class DefaultTrafficTreatment implements TrafficTreatment {
             return new DefaultTrafficTreatment(deferred, immediate, table, clear);
         }
 
+        @Override
+        public Builder setTunnelId(long tunnelId) {
+            return add(Instructions.modTunnelId(tunnelId));
+        }
     }
 
 }

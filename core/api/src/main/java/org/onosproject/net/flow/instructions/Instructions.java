@@ -22,7 +22,6 @@ import org.onlab.packet.MplsLabel;
 import org.onlab.packet.VlanId;
 import org.onosproject.core.GroupId;
 import org.onosproject.net.PortNumber;
-import org.onosproject.net.flow.FlowRule;
 import org.onosproject.net.flow.instructions.L0ModificationInstruction.L0SubType;
 import org.onosproject.net.flow.instructions.L0ModificationInstruction.ModLambdaInstruction;
 import org.onosproject.net.flow.instructions.L2ModificationInstruction.L2SubType;
@@ -31,6 +30,7 @@ import org.onosproject.net.flow.instructions.L3ModificationInstruction.L3SubType
 import org.onosproject.net.flow.instructions.L3ModificationInstruction.ModIPInstruction;
 import org.onosproject.net.flow.instructions.L3ModificationInstruction.ModIPv6FlowLabelInstruction;
 import org.onosproject.net.flow.instructions.L3ModificationInstruction.ModTtlInstruction;
+import org.onosproject.net.flow.instructions.L3ModificationInstruction.ModMetaDataInstruction;
 
 import java.util.Objects;
 
@@ -214,6 +214,27 @@ public final class Instructions {
     }
 
     /**
+     * Creates a metadata modification.
+     *
+     * @param metadata metadata to modify to
+     * @return a L3 modification
+     */
+    public static L3ModificationInstruction modMetaData(long metadata) {
+        checkNotNull(metadata, "Metadata cannot be null");
+        return new ModMetaDataInstruction(metadata, L3SubType.METADATA);
+    }
+
+    /**
+     * Creates a metadata modification.
+     *
+     * @param metadata metadata to modify to
+     * @return a L3 modification
+     */
+    public static L3ModificationInstruction modTunnelId(long tunnelId) {
+        checkNotNull(tunnelId, "tunnelId cannot be null");
+        return new ModMetaDataInstruction(tunnelId, L3SubType.TUNNEL_ID);
+    }
+    /**
      * Creates a L3 IPv6 Flow Label modification.
      *
      * @param flowLabel the IPv6 flow label to modify to (20 bits)
@@ -305,9 +326,9 @@ public final class Instructions {
      * @param type flow rule table type
      * @return table type transition instruction
      */
-    public static Instruction transition(FlowRule.Type type) {
-        checkNotNull(type, "Table type cannot be null");
-        return new TableTypeTransition(type);
+    public static Instruction transition(Integer tableId) {
+        checkNotNull(tableId, "Table id cannot be null");
+        return new TableTypeTransition(tableId);
     }
 
     /**
@@ -434,10 +455,10 @@ public final class Instructions {
     // FIXME: Temporary support for this. This should probably become it's own
     // type like other instructions.
     public static class TableTypeTransition implements Instruction {
-        private final FlowRule.Type tableType;
+        private final Integer tableId;
 
-        TableTypeTransition(FlowRule.Type type) {
-            this.tableType = type;
+        TableTypeTransition(Integer tableId) {
+            this.tableId = tableId;
         }
 
         @Override
@@ -445,19 +466,19 @@ public final class Instructions {
             return Type.TABLE;
         }
 
-        public FlowRule.Type tableType() {
-            return this.tableType;
+        public Integer tableId() {
+            return this.tableId;
         }
 
         @Override
         public String toString() {
             return toStringHelper(type().toString())
-                    .add("tableType", this.tableType).toString();
+                    .add("tableId", this.tableId).toString();
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(type(), tableType);
+            return Objects.hash(type(), tableId);
         }
 
         @Override
@@ -467,7 +488,7 @@ public final class Instructions {
             }
             if (obj instanceof TableTypeTransition) {
                 TableTypeTransition that = (TableTypeTransition) obj;
-                return Objects.equals(tableType, that.tableType);
+                return Objects.equals(tableId, that.tableId);
 
             }
             return false;

@@ -176,11 +176,11 @@ implements PacketService, PacketProviderRegistry {
         checkNotNull(selector, "Selector cannot be null");
         checkNotNull(appId, "Application ID cannot be null");
 
-        PacketRequest request =
-                new PacketRequest(selector, priority, appId, FlowRule.Type.DEFAULT);
-
-        packetRequests.add(request);
-        pushToAllDevices(request);
+//        PacketRequest request =
+//                new PacketRequest(selector, priority, appId, FlowRule.Type.DEFAULT);
+//
+//        packetRequests.add(request);
+//        pushToAllDevices(request);
     }
 
     @Override
@@ -208,6 +208,7 @@ implements PacketService, PacketProviderRegistry {
         for (Device device : deviceService.getDevices()) {
             if (deviceService.getRole(device.id()) == MastershipRole.MASTER) {
                 pushRule(device, request);
+                return;
             }
         }
     }

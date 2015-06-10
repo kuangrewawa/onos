@@ -39,15 +39,15 @@ public class DefaultInboundPacketTest {
             .setSourceMACAddress(MacAddress.BROADCAST);
     final ByteBuffer byteBuffer = ByteBuffer.wrap(eth.serialize());
     final DefaultInboundPacket packet1 =
-            new DefaultInboundPacket(connectPoint("d1", 1),
+            new DefaultInboundPacket(connectPoint("d1", 1), 0L,
                     eth,
                     byteBuffer);
     final DefaultInboundPacket sameAsPacket1 =
-            new DefaultInboundPacket(connectPoint("d1", 1),
+            new DefaultInboundPacket(connectPoint("d1", 1), 0L,
                     eth,
                     byteBuffer);
     final DefaultInboundPacket packet2 =
-            new DefaultInboundPacket(connectPoint("d2", 1),
+            new DefaultInboundPacket(connectPoint("d2", 1), 0L,
                     eth,
                     byteBuffer);
     /**

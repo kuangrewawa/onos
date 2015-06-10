@@ -42,8 +42,7 @@ public class DefaultPacketContextTest {
     final ByteBuffer byteBuffer = ByteBuffer.wrap(eth.serialize());
     final DefaultInboundPacket inPacket =
             new DefaultInboundPacket(connectPoint("d1", 1),
-                    eth,
-                    byteBuffer);
+                                     0L, eth, byteBuffer);
     final TrafficTreatment treatment = new IntentTestsMocks.MockTreatment();
     final DefaultOutboundPacket outPacket =
             new DefaultOutboundPacket(did("d1"),

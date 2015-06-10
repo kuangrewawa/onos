@@ -35,7 +35,7 @@ import static org.onosproject.app.DefaultApplicationDescriptionTest.*;
 
 public class ApplicationArchiveTest {
 
-    static final String ROOT = "/tmp/app-junit/" + new Random().nextInt() + "/foo";
+    static final String ROOT = "/tmp/app-junit/" + new Random().nextInt();
 
     private ApplicationArchive aar = new ApplicationArchive();
 

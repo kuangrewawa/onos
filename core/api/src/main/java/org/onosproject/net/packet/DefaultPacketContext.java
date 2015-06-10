@@ -21,7 +21,6 @@ import org.onosproject.net.flow.DefaultTrafficTreatment;
 import org.onosproject.net.flow.TrafficTreatment;
 import org.onosproject.net.flow.TrafficTreatment.Builder;
 
-
 public abstract class DefaultPacketContext implements PacketContext {
 
     private final long time;
@@ -31,9 +30,8 @@ public abstract class DefaultPacketContext implements PacketContext {
 
     private final AtomicBoolean block;
 
-
     protected DefaultPacketContext(long time, InboundPacket inPkt,
-            OutboundPacket outPkt, boolean block) {
+                                   OutboundPacket outPkt, boolean block) {
         super();
         this.time = time;
         this.inPkt = inPkt;

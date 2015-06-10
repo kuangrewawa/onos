@@ -29,6 +29,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 public final class DefaultInboundPacket implements InboundPacket {
 
     private final ConnectPoint receivedFrom;
+    private final Long tunnelId;
     private final Ethernet parsed;
     private final ByteBuffer unparsed;
 
@@ -36,12 +37,13 @@ public final class DefaultInboundPacket implements InboundPacket {
      * Creates an immutable inbound packet.
      *
      * @param receivedFrom connection point where received
-     * @param parsed       parsed ethernet frame
-     * @param unparsed     unparsed raw bytes
+     * @param parsed parsed ethernet frame
+     * @param unparsed unparsed raw bytes
      */
-    public  DefaultInboundPacket(ConnectPoint receivedFrom, Ethernet parsed,
-                                ByteBuffer unparsed) {
+    public DefaultInboundPacket(ConnectPoint receivedFrom, Long tunnelId,
+                                Ethernet parsed, ByteBuffer unparsed) {
         this.receivedFrom = receivedFrom;
+        this.tunnelId = tunnelId;
         this.parsed = parsed;
         this.unparsed = unparsed;
     }
@@ -51,6 +53,10 @@ public final class DefaultInboundPacket implements InboundPacket {
         return receivedFrom;
     }
 
+    @Override
+    public Long tunnelID() {
+        return tunnelId;
+    }
     @Override
     public Ethernet parsed() {
         return parsed;
@@ -74,18 +80,17 @@ public final class DefaultInboundPacket implements InboundPacket {
         }
         if (obj instanceof InboundPacket) {
             final DefaultInboundPacket other = (DefaultInboundPacket) obj;
-            return Objects.equals(this.receivedFrom, other.receivedFrom) &&
-                    Objects.equals(this.parsed, other.parsed) &&
-                    Objects.equals(this.unparsed, other.unparsed);
+            return Objects.equals(this.receivedFrom, other.receivedFrom)
+                    && Objects.equals(this.parsed, other.parsed)
+                    && Objects.equals(this.unparsed, other.unparsed);
         }
         return false;
     }
 
     @Override
     public String toString() {
-        return toStringHelper(this)
-                .add("receivedFrom", receivedFrom)
-                .add("parsed", parsed)
-                .toString();
+        return toStringHelper(this).add("receivedFrom", receivedFrom)
+                .add("parsed", parsed).toString();
     }
+
 }

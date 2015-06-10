@@ -33,6 +33,12 @@ public interface InboundPacket {
     ConnectPoint receivedFrom();
 
     /**
+     * Returns the TunnelID where the packet was received.
+     *
+     * @return TunnelID where received
+     */
+    Long tunnelID();
+    /**
      * Returns the parsed form of the packet.
      *
      * @return parsed Ethernet frame; null if the packet is not an Ethernet
